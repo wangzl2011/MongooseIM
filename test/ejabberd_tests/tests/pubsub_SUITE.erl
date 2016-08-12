@@ -36,76 +36,78 @@
 %%--------------------------------------------------------------------
 
 all() -> [
-          {group, pubsub_tests},
-          {group, node_config_tests},
-          {group, manage_subscriptions_tests},
-          {group, collection_tests},
-          {group, collection_config_tests}
+%%          {group, pubsub_tests},
+%%          {group, node_config_tests},
+%%          {group, manage_subscriptions_tests},
+%%          {group, collection_tests},
+%%          {group, collection_config_tests},
+          {group, microblogging}
          ].
 
-groups() -> [{pubsub_tests, [sequence],
-              [
-               create_delete_node_test,
-               discover_nodes_test,
-               subscribe_unsubscribe_test,
-               publish_test,
-               notify_test,
-               request_all_items_test,
-               purge_all_items_test,
-               retrieve_subscriptions_test
-              ]
-             },
-             {node_config_tests, [sequence],
-              [
-               disable_notifications_test,
-               disable_payload_test,
-               disable_persist_items_test,
-               notify_only_available_users_test,
-               send_last_published_item_test
-              ]
-             },
-             {manage_subscriptions_tests, [sequence],
-              [
-               retrieve_node_subscriptions_test,
-               modify_node_subscriptions_test
-              ]
-             },
-             {collection_tests, [sequence],
-              [
-               create_delete_collection_test,
-               subscribe_unsubscribe_collection_test,
-               create_delete_leaf_test,
-               notify_collection_test,
-               notify_collection_leaf_and_item_test,
-               notify_collection_bare_jid_test,
-               notify_collection_and_leaf_test,
-               notify_collection_and_leaf_same_user_test,
-               retrieve_subscriptions_collection_test,
-               discover_top_level_nodes_test,
-               discover_child_nodes_test,
-               request_all_items_leaf_test
-              ]
-             },
-             {collection_config_tests, [sequence],
-              [
-               disable_notifications_leaf_test,
-               disable_payload_leaf_test,
-               disable_persist_items_leaf_test
-              ]
-             }
+groups() -> [
+%%    {pubsub_tests, [sequence],
+%%              [
+%%               create_delete_node_test,
+%%               discover_nodes_test,
+%%               subscribe_unsubscribe_test,
+%%               publish_test,
+%%               notify_test,
+%%               request_all_items_test,
+%%               purge_all_items_test,
+%%               retrieve_subscriptions_test
+%%              ]
+%%             },
+%%             {node_config_tests, [sequence],
+%%              [
+%%               disable_notifications_test,
+%%               disable_payload_test,
+%%               disable_persist_items_test,
+%%               notify_only_available_users_test,
+%%               send_last_published_item_test
+%%              ]
+%%             },
+%%             {manage_subscriptions_tests, [sequence],
+%%              [
+%%               retrieve_node_subscriptions_test,
+%%               modify_node_subscriptions_test
+%%              ]
+%%             },
+%%             {collection_tests, [sequence],
+%%              [
+%%               create_delete_collection_test,
+%%               subscribe_unsubscribe_collection_test,
+%%               create_delete_leaf_test,
+%%               notify_collection_test,
+%%               notify_collection_leaf_and_item_test,
+%%               notify_collection_bare_jid_test,
+%%               notify_collection_and_leaf_test,
+%%               notify_collection_and_leaf_same_user_test,
+%%               retrieve_subscriptions_collection_test,
+%%               discover_top_level_nodes_test,
+%%               discover_child_nodes_test,
+%%               request_all_items_leaf_test
+%%              ]
+%%             },
+%%             {collection_config_tests, [sequence],
+%%              [
+%%               disable_notifications_leaf_test,
+%%               disable_payload_leaf_test,
+%%               disable_persist_items_leaf_test
+%%              ],
+              {microblogging, [sequence], [create_blog_post]}
             ].
 
 suite() ->
     escalus:suite().
 
 -define(NODE_ADDR, <<"pubsub.localhost">>).
--define(NODE_NAME, <<"princely_musings">>).
+-define(NODE_NAME, <<"urn:xmpp:microblog:0">>).
 -define(NODE, {?NODE_ADDR, ?NODE_NAME}).
 
 -define(NODE_NAME_2, <<"subpub">>).
 -define(NODE_2, {?NODE_ADDR, ?NODE_NAME_2}).
 
--define(DOMAIN, <<"localhost">>).
+-define(DOMAIN, <<"erlang-solutions.com">>).
 
 %%--------------------------------------------------------------------
 %% Init & teardown
@@ -866,6 +868,27 @@ disable_delivery_test(Config) ->
 
               delete_node(Alice, ?NODE, [])
       end).
+
+create_blog_post(Config) ->
+    escalus:story(
+        Config,
+        [{alice,1}, {bob, 1}],
+        fun(Alice, Bob) ->
+            {_, NodeName} = ?NODE,
+            AddressedNode = {escalus_users:get_jid(Config, alice), NodeName},
+            create_node(Alice, AddressedNode , []),
+            subscribe(Bob, AddressedNode, []),
+            publish(Alice, <<"item1">>, AddressedNode, []),
+
+            %% 7.1.2.1 Ex.101 notification with payload
+            %%                Note: message has type 'headline' by default
+
+            %% Bob subscribed with resource
+            receive_item_notification(Bob, <<"item1">>, AddressedNode, []),
+            escalus_assert:has_no_stanzas(Bob),
+
+            delete_node(Alice, AddressedNode, [])
+        end).
 
 %%-----------------------------------------------------------------
 %% Helpers
